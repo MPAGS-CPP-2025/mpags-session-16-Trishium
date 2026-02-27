@@ -5,6 +5,7 @@
 #include "ProcessCommandLine.hpp"
 #include "TransformChar.hpp"
 #include "VigenereCipher.hpp"
+#include "CipherFactory.hpp"
 
 #include <cctype>
 #include <fstream>
@@ -90,25 +91,30 @@ int main(int argc, char* argv[])
     }
 
     std::string outputText;
-
-    switch (settings.cipherType[0]) {
-        case CipherType::Caesar: {
-            // Run the Caesar cipher (using the specified key and encrypt/decrypt flag) on the input text
-            CaesarCipher cipher{settings.cipherKey[0]};
-            outputText = cipher.applyCipher(inputText, settings.cipherMode);
-            break;
+    if (settings.nExpectedCiphers == 1){
+        auto aCipher = CipherFactory::makeCipher(settings.cipherType[0], settings.cipherKey[0]);
+        outputText = aCipher->applyCipher(inputText, settings.cipherMode);
+    }
+    else{
+        std::vector<std::unique_ptr<Cipher>> ciphers;
+        for (std::size_t i{0}; i < settings.nExpectedCiphers; ++i) {
+            ciphers.push_back(CipherFactory::makeCipher(settings.cipherType[i], settings.cipherKey[i]));
         }
-        case CipherType::Playfair: {
-            PlayfairCipher cipher{settings.cipherKey[0]};
-            outputText = cipher.applyCipher(inputText, settings.cipherMode);
-            break;
+        if (settings.cipherMode == CipherMode::Encrypt){
+            for (std::size_t i{0}; i < settings.nExpectedCiphers; ++i) {
+                inputText = ciphers[i]->applyCipher(inputText, settings.cipherMode);
+                outputText = inputText;
+            }
         }
-        case CipherType::Vigenere: {
-            VigenereCipher cipher{settings.cipherKey[0]};
-            outputText = cipher.applyCipher(inputText, settings.cipherMode);
-            break;
+        else if (settings.cipherMode == CipherMode::Decrypt){
+            for (std::size_t i{settings.nExpectedCiphers}; i > 0; --i) {
+                inputText = ciphers[i-1]->applyCipher(inputText, settings.cipherMode);
+                outputText = inputText;
+            }
         }
     }
+    
+
 
     // Output the encrypted/decrypted text to stdout/file
     if (!settings.outputFile.empty()) {
