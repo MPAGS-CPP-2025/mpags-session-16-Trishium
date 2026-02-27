@@ -91,9 +91,30 @@ int main(int argc, char* argv[])
     }
 
     std::string outputText;
+    if (settings.nExpectedCiphers == 1){
+        auto aCipher = CipherFactory::makeCipher(settings.cipherType[0], settings.cipherKey[0]);
+        outputText = aCipher->applyCipher(inputText, settings.cipherMode);
+    }
+    else{
+        std::vector<std::unique_ptr<Cipher>> ciphers;
+        for (std::size_t i{0}; i < settings.nExpectedCiphers; ++i) {
+            ciphers.push_back(CipherFactory::makeCipher(settings.cipherType[i], settings.cipherKey[i]));
+        }
+        if (settings.cipherMode == CipherMode::Encrypt){
+            for (std::size_t i{0}; i < settings.nExpectedCiphers; ++i) {
+                inputText = ciphers[i]->applyCipher(inputText, settings.cipherMode);
+                outputText = inputText;
+            }
+        }
+        else if (settings.cipherMode == CipherMode::Decrypt){
+            for (std::size_t i{settings.nExpectedCiphers}; i > 0; --i) {
+                inputText = ciphers[i-1]->applyCipher(inputText, settings.cipherMode);
+                outputText = inputText;
+            }
+        }
+    }
+    
 
-    auto aCipher = CipherFactory::makeCipher(settings.cipherType[0], settings.cipherKey[0]);
-    outputText = aCipher->applyCipher(inputText, settings.cipherMode);
 
     // Output the encrypted/decrypted text to stdout/file
     if (!settings.outputFile.empty()) {
